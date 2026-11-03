@@ -9,7 +9,7 @@ from .router import ANY_STATE
 from .types import (CallbackQuery, Chat, ChatMember, ChatMemberUpdate, Contact, Dice,
                     InlineQuery, Location, Media, Message, Poll, PollAnswer,
                     PreCheckoutQuery, Update, User)
-from .utils import escape_html, escape_md, link, mention
+from .utils import escape_html, escape_md, link, mention, premium_emoji
 
 __all__ = [
     "start", "Bot",
@@ -18,7 +18,7 @@ __all__ = [
     "Message", "CallbackQuery", "InlineQuery", "PollAnswer", "ChatMemberUpdate",
     "PreCheckoutQuery", "Update", "User", "Chat", "ChatMember", "Media", "Location",
     "Contact", "Poll", "Dice",
-    "escape_html", "escape_md", "mention", "link",
+    "escape_html", "escape_md", "mention", "link", "premium_emoji",
     "TelegramAPIError", "NetworkError", "WgramError",
 ]
 __version__ = "0.2.0"

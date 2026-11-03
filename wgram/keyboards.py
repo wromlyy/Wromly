@@ -6,6 +6,8 @@
     InlineKeyboard([("Да", "yes"), ("Нет", "no")])
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
 _URL_PREFIXES = ("http://", "https://", "tg://")
@@ -130,10 +132,11 @@ class InlineButton:
     InlineButton("Искать тут", switch_here="кот")   # inline-режим в этом же чате
     InlineButton("Скопировать", copy="PROMO2026")   # копирует текст в буфер
     InlineButton("Оплатить", pay=True)              # для счетов (первая кнопка)
+    InlineButton("Готово", data="ok", style="success")
     """
 
     def __init__(self, text, data=None, url=None, web_app=None, switch=None,
-                 switch_here=None, copy=None, pay=False):
+                 switch_here=None, copy=None, pay=False, style: str | None = None):
         self.text = str(text)
         self.data = data
         self.url = url
@@ -142,6 +145,9 @@ class InlineButton:
         self.switch_here = switch_here
         self.copy = copy
         self.pay = pay
+        if style is not None and style not in ("primary", "success", "danger"):
+            raise ValueError("style должен быть primary, success, danger или None")
+        self.style = style
         chosen = [x for x in (data, url, web_app, switch, switch_here, copy) if x is not None]
         if len(chosen) + (1 if pay else 0) != 1:
             raise ValueError("У inline-кнопки {!r} нужно указать ровно одно действие "
@@ -151,6 +157,8 @@ class InlineButton:
 
     def to_dict(self) -> Dict[str, Any]:
         d = {"text": self.text}
+        if self.style is not None:
+            d["style"] = self.style
         if self.data is not None:
             d["callback_data"] = str(self.data)
         elif self.url is not None:
