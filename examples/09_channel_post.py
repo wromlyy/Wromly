@@ -5,6 +5,7 @@ import struct
 import zlib
 
 import wgram
+from wgram.api import Upload
 
 BOT_TOKEN = ""
 CHANNEL_ID = 0  # Числовой ID приватного канала, например -1001234567890
@@ -60,7 +61,8 @@ def post(message):
             [wgram.InlineButton("Подробнее", data="details", style="primary")],
         )
         sent = bot.send_photo(
-            CHANNEL_ID, make_photo(), caption=caption, keyboard=buttons, parse="html"
+            CHANNEL_ID, Upload("post.png", data=make_photo()),
+            caption=caption, keyboard=buttons, parse="html"
         )
         emoji_in_response = any(
             entity.get("type") == "custom_emoji"
