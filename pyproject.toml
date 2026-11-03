@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Wromly"
+name = "Wgram"
 version = "0.2.0"
 description = "Максимально простая библиотека для Telegram-ботов: кнопки, медиа, состояния, группы, платежи, без async/await на виду"
 readme = "README.md"
