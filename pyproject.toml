@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Wgram"
-version = "0.2.0"
+version = "0.2.1"
 description = "Максимально простая библиотека для Telegram-ботов: кнопки, медиа, состояния, группы, платежи, без async/await на виду"
 readme = "README.md"
 requires-python = ">=3.8"

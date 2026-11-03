@@ -21,7 +21,7 @@ __all__ = [
     "escape_html", "escape_md", "mention", "link", "premium_emoji",
     "TelegramAPIError", "NetworkError", "WgramError",
 ]
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 def start(token: str, parse=None) -> Bot:
