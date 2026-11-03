@@ -55,7 +55,7 @@ def _rows(rows) -> List[list]:
 class Keyboard:
     """Обычная клавиатура под полем ввода.
 
-    Keyboard(["Да", "Нет"], ["Отмена"], resize=True, one_time=False, placeholder="Выберите...")
+    Keyboard(["Да", "Нет"], ["Отмена"], resize=True, one_time=False, placeholder="Выберите")
     Keyboard.grid(["1", "2", "3", "4", "5"], columns=3)
     """
 
@@ -183,7 +183,7 @@ def _ibtn(b) -> Dict[str, Any]:
         return b
     if isinstance(b, str):                       # "Да" -> текст и data одинаковые
         return InlineButton(b, data=b).to_dict()
-    if isinstance(b, tuple) and len(b) == 2:     # ("Текст", "data") или ("Текст", "https://...")
+    if isinstance(b, tuple) and len(b) == 2:     # ("Текст", "data") или ("Текст", "https://example.com")
         text, second = b
         if isinstance(second, str) and second.startswith(_URL_PREFIXES):
             return InlineButton(text, url=second).to_dict()
