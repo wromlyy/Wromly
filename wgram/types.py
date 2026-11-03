@@ -385,6 +385,24 @@ class Message:
         Возвращает отправленное Message (в sync-коде) - его можно потом edit()."""
         return self._send("send", text, keyboard=keyboard, **kw)
 
+    def say(self, text, buttons=None, **options):
+        """Ответить простыми словами: msg.say("Привет")."""
+        return self.reply(text, keyboard=buttons, **options)
+
+    def ask(self, text, state, buttons=None, **options):
+        """Задать вопрос и ждать следующий ответ в состоянии state."""
+        sent = self.reply(text, keyboard=buttons, **options)
+        self.set_state(state)
+        return sent
+
+    def send_picture(self, photo, caption=None, buttons=None, **options):
+        """Ответить фотографией из файла, URL или Telegram file_id."""
+        return self.reply_photo(photo, caption=caption, keyboard=buttons, **options)
+
+    def send_file(self, document, caption=None, buttons=None, **options):
+        """Ответить документом из файла, URL или Telegram file_id."""
+        return self.reply_document(document, caption=caption, keyboard=buttons, **options)
+
     def reply_photo(self, photo, caption=None, **kw):
         return self._send("send_photo", photo, caption=caption, **kw)
 

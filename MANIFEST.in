@@ -1,4 +1,4 @@
-include README.md LICENSE
+include README.md EASY_START.md LICENSE
 include wgram/py.typed
 recursive-include examples *.py
 recursive-include tests *.py

@@ -1,6 +1,7 @@
 """wgram: максимально простая библиотека для Telegram-ботов."""
 
 from .bot import Bot
+from .easy import buttons, choice, menu
 from .exceptions import NetworkError, TelegramAPIError, WgramError
 from .inputs import InlineArticle, InlinePhoto, InputMedia
 from .keyboards import (Button, ForceReply, InlineButton, InlineKeyboard, Keyboard,
@@ -12,7 +13,7 @@ from .types import (CallbackQuery, Chat, ChatMember, ChatMemberUpdate, Contact, 
 from .utils import escape_html, escape_md, link, mention, premium_emoji
 
 __all__ = [
-    "start", "Bot",
+    "start", "Bot", "buttons", "choice", "menu",
     "Keyboard", "Button", "InlineKeyboard", "InlineButton", "RemoveKeyboard", "ForceReply",
     "InputMedia", "InlineArticle", "InlinePhoto", "ANY_STATE",
     "Message", "CallbackQuery", "InlineQuery", "PollAnswer", "ChatMemberUpdate",
@@ -21,7 +22,7 @@ __all__ = [
     "escape_html", "escape_md", "mention", "link", "premium_emoji",
     "TelegramAPIError", "NetworkError", "WgramError",
 ]
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 
 def start(token: str, parse=None) -> Bot:

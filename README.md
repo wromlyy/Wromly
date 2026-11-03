@@ -8,20 +8,15 @@ import wgram
 
 bot = wgram.start("ТОКЕН_ОТ_BOTFATHER")
 
-@bot.on("/start")
-def hello(msg):
-    msg.reply("Привет, это мой бот")
-
-@bot.on("текст")
-def echo(msg):
-    msg.reply("Ты написал: " + msg.text)
+bot.when("/start").say("Привет! Напиши: кот")
+bot.when_contains("кот").say("Мяу!")
 
 bot.run()
 ```
 
 Внутри работают `asyncio` и `aiohttp`, но вам про них знать не нужно. Других зависимостей нет.
 
-[Готовый пример бота из нескольких файлов с `.env`](examples/multi_file_bot/README.md).
+[Простой старт без `@` и `def`](https://github.com/wromlyy/Wromly/blob/main/EASY_START.md) · [Готовый пример бота из нескольких файлов с `.env`](https://github.com/wromlyy/Wromly/blob/main/examples/multi_file_bot/README.md).
 
 **Что умеет:** текст и команды, обычные и inline-кнопки, фото/видео/аудио/голосовые/стикеры/GIF/документы
 (отправка и приём, скачивание), альбомы, опросы и викторины, кубики, геопозиция, контакты,

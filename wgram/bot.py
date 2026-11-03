@@ -105,6 +105,59 @@ class Bot:
             contains=contains, starts=starts, regex=regex, kind=kind, state=state,
             users=users, chat=chat, ignore_case=ignore_case))
 
+    # Простые правила без декораторов и отдельных функций.
+    def when(self, text, answer=None):
+        """bot.when("/start").say("Привет") или bot.when("привет", "Привет")."""
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError("Нужно написать непустую команду или текст")
+        from .easy import SimpleRule
+        rule = SimpleRule(self, lambda handler: self.on(text, ignore_case=True)(handler))
+        return rule.say(answer) if answer is not None else rule
+
+    def when_contains(self, text, answer=None):
+        """bot.when_contains("кот").say("Мяу")."""
+        if not isinstance(text, str) or not text:
+            raise ValueError("Нужно указать непустое слово или фразу")
+        from .easy import SimpleRule
+        rule = SimpleRule(self, lambda handler: self.on(contains=text, ignore_case=True)(handler))
+        return rule.say(answer) if answer is not None else rule
+
+    def when_photo(self, answer=None):
+        """bot.when_photo().say("Красивое фото")."""
+        from .easy import SimpleRule
+        rule = SimpleRule(self, self.on_photo())
+        return rule.say(answer) if answer is not None else rule
+
+    def when_file(self, answer=None):
+        """bot.when_file().say("Файл получен")."""
+        from .easy import SimpleRule
+        rule = SimpleRule(self, self.on_document())
+        return rule.say(answer) if answer is not None else rule
+
+    def when_video(self, answer=None):
+        """bot.when_video().say("Видео получено")."""
+        from .easy import SimpleRule
+        rule = SimpleRule(self, self.on_video())
+        return rule.say(answer) if answer is not None else rule
+
+    def when_voice(self, answer=None):
+        """bot.when_voice().say("Голосовое получено")."""
+        from .easy import SimpleRule
+        rule = SimpleRule(self, self.on_voice())
+        return rule.say(answer) if answer is not None else rule
+
+    def when_state(self, state, answer=None):
+        """bot.when_state("name").say("Спасибо", clear_state=True)."""
+        from .easy import SimpleRule
+        rule = SimpleRule(self, self.on(state=state))
+        return rule.say(answer) if answer is not None else rule
+
+    def when_button(self, data, answer=None):
+        """bot.when_button("yes").say("Ты нажал Да")."""
+        from .easy import SimpleButtonRule
+        rule = SimpleButtonRule(self.on_button(data))
+        return rule.say(answer) if answer is not None else rule
+
     def on_edit(self, *triggers, **opts):
         """То же, что on(), но для отредактированных сообщений."""
         return self._msg_dec("edited", triggers, opts)
@@ -615,6 +668,19 @@ class Bot:
         """
         return self._run(self._send_text(chat_id, text, keyboard, parse, preview, reply_to,
                                          silent, protect, thread_id, extra))
+
+    def say(self, chat_id, text, buttons=None, **options):
+        """Отправить текст: bot.say(CHAT_ID, "Привет")."""
+        return self.send(chat_id, text, keyboard=buttons, **options)
+
+    def picture(self, chat_id, photo, caption=None, buttons=None, **options):
+        """Отправить фото: bot.picture(CHAT_ID, "photo.jpg")."""
+        return self.send_photo(chat_id, photo, caption=caption, keyboard=buttons, **options)
+
+    def file(self, chat_id, document, caption=None, buttons=None, **options):
+        """Отправить документ: bot.file(CHAT_ID, "report.pdf")."""
+        return self.send_document(chat_id, document, caption=caption,
+                                  keyboard=buttons, **options)
 
     def send_photo(self, chat_id, photo, caption=None, keyboard=None, parse=None,
                    spoiler=False, reply_to=None, silent=False, protect=False,
