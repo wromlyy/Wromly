@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Wromly"
+version = "0.2.0"
+description = "Максимально простая библиотека для Telegram-ботов: кнопки, медиа, состояния, группы, платежи, без async/await на виду"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Wromly" }]
+keywords = ["telegram", "bot", "telegram-bot", "wgram", "simple", "aiohttp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+    "Framework :: AsyncIO",
+    "Typing :: Typed",
+]
+dependencies = ["aiohttp>=3.8"]
+
+[project.urls]
+Homepage = "https://github.com/wromlyy/Wromly"
+Issues = "https://github.com/wromlyy/Wromly/issues"
+
+[tool.setuptools]
+packages = ["wgram"]
+
+[tool.setuptools.package-data]
+wgram = ["py.typed"]
