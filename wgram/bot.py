@@ -26,7 +26,9 @@ MAX_TEXT = 4096         # лимит Telegram на длину текста со�
 
 ALLOWED_UPDATES = ["message", "edited_message", "channel_post", "edited_channel_post",
                    "callback_query", "inline_query", "poll_answer", "my_chat_member",
-                   "chat_member", "pre_checkout_query"]
+                   "chat_member", "pre_checkout_query", "business_connection",
+                   "business_message", "edited_business_message",
+                   "deleted_business_messages", "chat_join_request"]
 
 _WEEKDAYS = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
 _MSG_OPTS = ("contains", "starts", "regex", "kind", "state", "users", "chat", "ignore_case")
@@ -157,6 +159,44 @@ class Bot:
         from .easy import SimpleButtonRule
         rule = SimpleButtonRule(self.on_button(data))
         return rule.say(answer) if answer is not None else rule
+
+    def on_business(self, *triggers, **opts):
+        """Сообщение в подключённом Telegram Business чате."""
+        return self._msg_dec("business_message", triggers, opts)
+
+    def on_business_edit(self, *triggers, **opts):
+        """Изменённое Business сообщение."""
+        return self._msg_dec("business_edited", triggers, opts)
+
+    def on_business_connection(self, func=None):
+        """Подключение Business аккаунта или изменение выданных прав."""
+        return self._plain_dec("business_connection", (func,) if func else ())
+
+    def on_business_deleted(self, func=None):
+        """Удаление сообщений в Business чате."""
+        return self._plain_dec("business_deleted", (func,) if func else ())
+
+    def on_join_request(self, func=None):
+        """Заявка на вступление в чат или канал."""
+        return self._plain_dec("join_request", (func,) if func else ())
+
+    def when_business(self, text=None, answer=None):
+        """Простое правило для Business сообщения без декоратора."""
+        from .easy import SimpleRule
+        base = (self.on_business(text, ignore_case=True) if text is not None
+                else self.on_business())
+        def register(handler):
+            def incoming_only(message):
+                if not message.raw.get("sender_business_bot"):
+                    return handler(message)
+            return base(incoming_only)
+        rule = SimpleRule(self, register)
+        return rule.say(answer) if answer is not None else rule
+
+    def business(self, connection_id):
+        """Действия от имени подключённого Business аккаунта."""
+        from .business import Business
+        return Business(self, connection_id)
 
     def on_edit(self, *triggers, **opts):
         """То же, что on(), но для отредактированных сообщений."""
@@ -455,7 +495,10 @@ class Bot:
                 result = await asyncio.get_running_loop().run_in_executor(None, handler, obj)
             if isinstance(result, str) and result.strip():
                 if isinstance(obj, Message):
-                    await self._send_text(obj.chat_id, result, thread_id=obj.thread_id)
+                    extra = ({"business_connection_id": obj.business_connection_id}
+                             if obj.business_connection_id else None)
+                    await self._send_text(obj.chat_id, result, thread_id=obj.thread_id,
+                                          extra=extra)
                 elif isinstance(obj, CallbackQuery) and not obj._answered:
                     obj._answered = True
                     await self._api.call("answerCallbackQuery", {
@@ -815,11 +858,12 @@ class Bot:
         p.update(extra)
         return self._do("sendMediaGroup", p, files, "messages")
 
-    def send_chat_action(self, chat_id, action="typing", thread_id=None):
+    def send_chat_action(self, chat_id, action="typing", thread_id=None, **extra):
         """typing, upload_photo, record_video, upload_video, record_voice, upload_voice,
         upload_document, choose_sticker, find_location, record_video_note, upload_video_note."""
-        return self._do("sendChatAction", {"chat_id": chat_id, "action": action,
-                                           "message_thread_id": thread_id}, None, "bool")
+        p = {"chat_id": chat_id, "action": action, "message_thread_id": thread_id}
+        p.update(extra)
+        return self._do("sendChatAction", p, None, "bool")
 
     typing = send_chat_action
 
@@ -883,12 +927,15 @@ class Bot:
         p.update(extra)
         return self._do("editMessageCaption", p, None, "message_or_true")
 
-    def edit_keyboard(self, chat_id, message_id, keyboard=None, inline_id=None):
+    def edit_keyboard(self, chat_id, message_id, keyboard=None, inline_id=None,
+                      business_connection_id=None):
         """Меняет inline-кнопки под сообщением; keyboard=None убирает их."""
         p = self._target(chat_id, message_id, inline_id)
         markup = to_markup(keyboard)
         if markup:
             p["reply_markup"] = markup
+        if business_connection_id is not None:
+            p["business_connection_id"] = business_connection_id
         return self._do("editMessageReplyMarkup", p, None, "message_or_true")
 
     def delete_message(self, chat_id, message_id):
@@ -954,6 +1001,94 @@ class Bot:
             "button": button}, None, "bool")
 
     # ================================================================ чаты и участники
+
+    def get_business_connection(self, connection_id):
+        """Получить права и состояние Business подключения."""
+        from .types import BusinessConnection
+        result = self.call("getBusinessConnection", business_connection_id=connection_id)
+        return BusinessConnection.from_dict(result) if isinstance(result, dict) else result
+
+    def set_chat_permissions(self, chat_id, **permissions):
+        """Установить права всех обычных участников группы."""
+        return self.call("setChatPermissions", chat_id=chat_id, permissions=permissions)
+
+    def approve_join(self, chat_id, user_id):
+        """Одобрить заявку на вступление."""
+        return self.call("approveChatJoinRequest", chat_id=chat_id, user_id=user_id)
+
+    def decline_join(self, chat_id, user_id):
+        """Отклонить заявку на вступление."""
+        return self.call("declineChatJoinRequest", chat_id=chat_id, user_id=user_id)
+
+    def auto_approve_joins(self, chat_id):
+        """Автоматически одобрять заявки в указанную группу или канал."""
+        def approve(request):
+            if request.chat_id == chat_id:
+                request.approve()
+        self.on_join_request(approve)
+        return approve
+
+    def auto_delete(self, chat_id, text):
+        """Удалять сообщения с указанным текстом в группе или канале."""
+        if not isinstance(text, str) or not text:
+            raise ValueError("Нужен непустой текст для удаления")
+        def delete(message):
+            if message.chat_id == chat_id and (message.text or "").casefold() == text.casefold():
+                message.delete()
+        self.on(text, chat="group", ignore_case=True)(delete)
+        self.on_channel(text, ignore_case=True)(delete)
+        return delete
+
+    def export_invite_link(self, chat_id):
+        """Создать новую основную ссылку-приглашение."""
+        return self.call("exportChatInviteLink", chat_id=chat_id)
+
+    def revoke_invite_link(self, chat_id, invite_link):
+        """Отозвать ссылку-приглашение."""
+        return self.call("revokeChatInviteLink", chat_id=chat_id, invite_link=invite_link)
+
+    def unpin_all_messages(self, chat_id):
+        """Открепить все сообщения в чате или канале."""
+        return self.call("unpinAllChatMessages", chat_id=chat_id)
+
+    def delete_chat_photo(self, chat_id):
+        return self.call("deleteChatPhoto", chat_id=chat_id)
+
+    def set_admin_title(self, chat_id, user_id, title):
+        return self.call("setChatAdministratorCustomTitle", chat_id=chat_id,
+                         user_id=user_id, custom_title=title)
+
+    def set_chat_sticker_set(self, chat_id, sticker_set_name):
+        return self.call("setChatStickerSet", chat_id=chat_id,
+                         sticker_set_name=sticker_set_name)
+
+    def delete_chat_sticker_set(self, chat_id):
+        return self.call("deleteChatStickerSet", chat_id=chat_id)
+
+    def create_invite_link(self, chat_id, **options):
+        """Создать ссылку и получить полный объект с настройками Telegram."""
+        return self.call("createChatInviteLink", chat_id=chat_id, **options)
+
+    def edit_invite_link(self, chat_id, invite_link, **options):
+        return self.call("editChatInviteLink", chat_id=chat_id,
+                         invite_link=invite_link, **options)
+
+    def create_subscription_invite_link(self, chat_id, name, period, price):
+        return self.call("createChatSubscriptionInviteLink", chat_id=chat_id,
+                         name=name, subscription_period=period,
+                         subscription_price=price)
+
+    def edit_subscription_invite_link(self, chat_id, invite_link, name):
+        return self.call("editChatSubscriptionInviteLink", chat_id=chat_id,
+                         invite_link=invite_link, name=name)
+
+    def ban_sender_chat(self, chat_id, sender_chat_id):
+        return self.call("banChatSenderChat", chat_id=chat_id,
+                         sender_chat_id=sender_chat_id)
+
+    def unban_sender_chat(self, chat_id, sender_chat_id):
+        return self.call("unbanChatSenderChat", chat_id=chat_id,
+                         sender_chat_id=sender_chat_id)
 
     def get_me(self):
         return self._do("getMe", None, None, "user")

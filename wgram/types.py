@@ -237,6 +237,7 @@ class Message:
     kind: str = "text"                          # см. ALL_KINDS
     date: Optional[int] = None
     thread_id: Optional[int] = None             # тема форума
+    business_connection_id: Optional[str] = None
     reply_to: Optional["Message"] = None        # сообщение, на которое ответили
     media: Optional[Media] = None
     location: Optional[Location] = None
@@ -270,6 +271,7 @@ class Message:
             user=User.from_dict(sender) if sender else None,
             kind=kind, date=d.get("date"),
             thread_id=d.get("message_thread_id") if d.get("is_topic_message") else None,
+            business_connection_id=d.get("business_connection_id"),
             reply_to=cls.from_dict(reply, bot) if reply else None,
             media=media,
             location=Location(loc["latitude"], loc["longitude"]) if loc else None,
@@ -378,6 +380,8 @@ class Message:
             kw["reply_to"] = self.message_id
         if self.thread_id is not None:
             kw.setdefault("thread_id", self.thread_id)
+        if self.business_connection_id is not None:
+            kw.setdefault("business_connection_id", self.business_connection_id)
         return getattr(_need(self._bot), method)(self.chat_id, *args, **kw)
 
     def reply(self, text, keyboard=None, **kw):
@@ -460,18 +464,26 @@ class Message:
 
     def edit(self, text, keyboard=None, **kw):
         """Меняет текст сообщения (только свои сообщения бота). Без keyboard кнопки убираются."""
+        if self.business_connection_id is not None:
+            kw.setdefault("business_connection_id", self.business_connection_id)
         return _need(self._bot).edit_text(self.chat_id, self.message_id, text,
                                           keyboard=keyboard, **kw)
 
     def edit_caption(self, caption, keyboard=None, **kw):
+        if self.business_connection_id is not None:
+            kw.setdefault("business_connection_id", self.business_connection_id)
         return _need(self._bot).edit_caption(self.chat_id, self.message_id, caption,
                                              keyboard=keyboard, **kw)
 
     def edit_keyboard(self, keyboard=None):
         """Меняет inline-кнопки под сообщением; keyboard=None убирает их."""
-        return _need(self._bot).edit_keyboard(self.chat_id, self.message_id, keyboard)
+        return _need(self._bot).edit_keyboard(
+            self.chat_id, self.message_id, keyboard,
+            business_connection_id=self.business_connection_id)
 
     def delete(self):
+        if self.business_connection_id is not None:
+            return _need(self._bot).business(self.business_connection_id).delete(self.message_id)
         return _need(self._bot).delete_message(self.chat_id, self.message_id)
 
     def forward(self, to_chat_id, **kw):
@@ -699,6 +711,75 @@ class PreCheckoutQuery:
         return _need(self._bot).answer_checkout(self.id, False, text)
 
 
+@dataclass
+class ChatJoinRequest:
+    """Заявка пользователя на вступление в чат или канал."""
+
+    chat: Chat
+    user: User
+    date: int
+    raw: Dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
+    _bot: Any = field(default=None, repr=False, compare=False)
+
+    @classmethod
+    def from_dict(cls, data, bot=None):
+        return cls(chat=Chat.from_dict(data["chat"]),
+                   user=User.from_dict(data["from"]),
+                   date=data.get("date", 0), raw=data, _bot=bot)
+
+    @property
+    def chat_id(self):
+        return self.chat.id
+
+    def approve(self):
+        return _need(self._bot).approve_join(self.chat.id, self.user.id)
+
+    def decline(self):
+        return _need(self._bot).decline_join(self.chat.id, self.user.id)
+
+
+# ============================================================ Business
+
+@dataclass
+class BusinessConnection:
+    """Подключение Telegram Business и выданные боту права."""
+
+    id: str
+    user: User
+    user_chat_id: int
+    date: int
+    is_enabled: bool
+    rights: Dict[str, Any] = field(default_factory=dict)
+    raw: Dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(id=data["id"], user=User.from_dict(data["user"]),
+                   user_chat_id=data["user_chat_id"], date=data.get("date", 0),
+                   is_enabled=data.get("is_enabled", False),
+                   rights=data.get("rights") or {}, raw=data)
+
+
+@dataclass
+class BusinessMessagesDeleted:
+    """Список удалённых сообщений в чате Business подключения."""
+
+    business_connection_id: str
+    chat: Chat
+    message_ids: List[int]
+    raw: Dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(business_connection_id=data["business_connection_id"],
+                   chat=Chat.from_dict(data["chat"]),
+                   message_ids=list(data.get("message_ids") or []), raw=data)
+
+    @property
+    def chat_id(self):
+        return self.chat.id
+
+
 # ============================================================ Update
 
 @dataclass
@@ -712,7 +793,8 @@ class Update:
 
     @property
     def message(self) -> Optional[Message]:
-        return self.obj if self.kind in ("message", "edited", "channel") else None
+        return self.obj if self.kind in ("message", "edited", "channel",
+                                         "business_message", "business_edited") else None
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any], bot: Any = None) -> "Update":
@@ -721,6 +803,19 @@ class Update:
                           ("channel_post", "channel"), ("edited_channel_post", "edited")):
             if key in d:
                 return cls(uid, kind, Message.from_dict(d[key], bot))
+        for key, kind in (("business_message", "business_message"),
+                          ("edited_business_message", "business_edited")):
+            if key in d:
+                return cls(uid, kind, Message.from_dict(d[key], bot))
+        if "chat_join_request" in d:
+            return cls(uid, "join_request",
+                       ChatJoinRequest.from_dict(d["chat_join_request"], bot))
+        if "business_connection" in d:
+            return cls(uid, "business_connection",
+                       BusinessConnection.from_dict(d["business_connection"]))
+        if "deleted_business_messages" in d:
+            return cls(uid, "business_deleted",
+                       BusinessMessagesDeleted.from_dict(d["deleted_business_messages"]))
         if "callback_query" in d:
             return cls(uid, "callback", CallbackQuery.from_dict(d["callback_query"], bot))
         if "inline_query" in d:

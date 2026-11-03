@@ -22,7 +22,60 @@ bot.run()
 (отправка и приём, скачивание), альбомы, опросы и викторины, кубики, геопозиция, контакты,
 состояния (анкеты по шагам), редактирование/удаление/пересылка/реакции/закрепление, управление группами
 (бан, мут, админы, ссылки), inline-режим, оплата Telegram Stars, задачи по расписанию,
-рассылки из скриптов, любой метод Bot API напрямую.
+рассылки из скриптов, Telegram Business, заявки на вступление, управление чатами и каналами,
+любой метод Bot API напрямую.
+
+---
+
+## Telegram Business и управление чатами без `@` и `def`
+
+Подключите бота к Telegram Business аккаунту и выдайте ему нужные права. После этого он
+получает Business сообщения и может отвечать от имени аккаунта:
+
+```python
+import wgram
+
+bot = wgram.start("ТОКЕН_ОТ_BOTFATHER")
+bot.when_business("Привет").say("Здравствуйте! Чем помочь?")
+bot.run()
+```
+
+Для действий по ID подключения используйте `bot.business(connection_id)`.
+ID приходит в событии `business_connection`; чтобы увидеть его без отдельной функции,
+зарегистрируйте `bot.on_business_connection(print)` и запустите бота.
+
+```python
+business = bot.business("ID_ПОДКЛЮЧЕНИЯ")
+business.say(123456789, "Добрый день")
+business.picture(123456789, "photo.jpg", caption="Фото")
+business.read(123456789, 42)
+business.delete(42)
+business.set_profile_photo("profile.jpg")
+business.post_story("story.jpg", 86400)
+```
+
+Business поддерживает также видео, документы, голосовые, аудио, стикеры, геопозицию,
+контакты, опросы, редактирование сообщений и кнопок, истории, чеклисты,
+настройки профиля, подарки и Stars. Для редкого метода Bot API есть
+`business.call("ИмяМетода", **параметры)`, если Telegram принимает
+`business_connection_id` в этом методе. Для обычного бота есть `bot.call(...)`.
+
+Для группы или канала бот должен быть администратором с нужными правами:
+
+```python
+bot = wgram.start("ТОКЕН_ОТ_BOTFATHER")
+bot.auto_approve_joins(-1001234567890)
+bot.auto_delete(-1001234567890, "спам")
+bot.say(-1001234567890, "Новый пост")
+bot.pin(-1001234567890, 42)
+bot.run()
+```
+
+`bot.approve_join`, `bot.decline_join`, `bot.ban`, `bot.mute`, `bot.promote`,
+`bot.set_title`, `bot.set_description`, `bot.create_invite_link`,
+`bot.edit_invite_link` и `bot.delete_message` выполняют другие частые действия.
+Telegram разрешает только действия, на которые у бота есть права; Business
+дополнительно ограничивает доступ подключением аккаунта и выданными разрешениями.
 
 ---
 
